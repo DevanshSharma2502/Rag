@@ -6,12 +6,14 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-from langchain.llms import HuggingFaceHub
+from langchain.llms import HuggingFacePipeline
+from transformers import pipeline
 import os
+from langchain.llms import HuggingFaceHub
+from langchain_google_genai import ChatGoogleGenerativeAI
 
-# ----------------------------
+
 # Helper functions
-# ----------------------------
 def get_pdf_text(pdf_docs):
     text = ""
     for pdf in pdf_docs:
@@ -31,18 +33,23 @@ def get_text_chunks(text):
     return text_splitter.split_text(text)
 
 def get_vectorstore(text_chunks):
-    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    embeddings = HuggingFaceInstructEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vectorstore
 
 def get_conversation_chain(vectorstore):
-    hf_key = os.getenv("HUGGINGFACEHUB_API_TOKEN")
-    llm = HuggingFaceHub(
-        repo_id="google/flan-t5-xxl",
-        model_kwargs={"temperature":0.5, "max_length":512},
-        huggingfacehub_api_token=hf_key
+    google_key = os.getenv("GOOGLE_API_KEY")  
+    
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",  
+        google_api_key=google_key,
+        temperature=0.5
     )
+    
     memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
+    
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         retriever=vectorstore.as_retriever(),
@@ -60,11 +67,9 @@ def handle_userinput(user_question):
         else:
             st.write(f"🤖 Bot: {message.content}")
 
-# ----------------------------
 # Main app
-# ----------------------------
 def main():
-    load_dotenv()
+    load_dotenv()  # load .env file
     st.set_page_config(page_title="Chat with PDFs", page_icon="📚")
     st.title("📚 Chat with Multiple PDFs")
 
@@ -87,6 +92,7 @@ def main():
                     text_chunks = get_text_chunks(raw_text)
                     vectorstore = get_vectorstore(text_chunks)
                     st.session_state.conversation = get_conversation_chain(vectorstore)
+                    st.success("PDFs processed successfully!")
             else:
                 st.warning("Please upload PDFs.")
 
