@@ -6,4 +6,4 @@ transformers
 sentence-transformers
 faiss-cpu
 langchain-google-genai
-
+langchain-community
