@@ -8,3 +8,4 @@ faiss-cpu
 langchain-google-genai
 langchain-community
 InstructorEmbedding
+ddgs
